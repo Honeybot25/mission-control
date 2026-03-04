@@ -1,0 +1,42 @@
+{
+  "deployment_id": "momentum-2026-02-26",
+  "timestamp": "2026-02-26T06:15:00-08:00",
+  "agent": "TraderBot",
+  "project": "momentum-scanner",
+  "status": "DEPLOYED",
+  "description": "Momentum Breakout Scanner deployed for market open. Monitoring NVDA, SPY, QQQ, TSLA with volume/RSI/MACD signals. Paper trading enabled with 2% risk management.",
+  "estimated_impact": "high",
+  "deliverables": {
+    "scanner_script": "/Users/Honeybot/.openclaw/workspace/trading/momentum_scanner.py",
+    "alert_system": "/Users/Honeybot/.openclaw/workspace/trading/alert_system.py",
+    "launch_script": "/Users/Honeybot/.openclaw/workspace/trading/launch_market_open.sh",
+    "deployment_doc": "/Users/Honeybot/.openclaw/workspace/trading/MOMENTUM_DEPLOYMENT.md"
+  },
+  "configuration": {
+    "tickers": ["NVDA", "SPY", "QQQ", "TSLA"],
+    "timeframe": "5Min",
+    "volume_spike_threshold": 1.5,
+    "rsi_range": [50, 70],
+    "macd_signal": "bullish_crossover",
+    "max_position_pct": 0.02,
+    "stop_loss_pct": 0.03,
+    "take_profit_pct": 0.06,
+    "paper_trading": true,
+    "check_interval_seconds": 60
+  },
+  "processes": {
+    "scanner_pid": 40757,
+    "alert_pid": 40787,
+    "status": "running"
+  },
+  "logs": {
+    "scanner": "/Users/Honeybot/.openclaw/workspace/trading/logs/scanner_continuous.log",
+    "alerts": "/Users/Honeybot/.openclaw/workspace/trading/logs/alerts.log",
+    "main": "/Users/Honeybot/.openclaw/workspace/trading/logs/momentum_scanner.log"
+  },
+  "next_actions": [
+    "Monitor Discord #trading-alerts for signals",
+    "Add Alpaca API keys for live paper orders",
+    "Review signals at market close"
+  ]
+}

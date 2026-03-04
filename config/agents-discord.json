@@ -1,0 +1,93 @@
+{
+  "agents": [
+    {
+      "id": "traderbot",
+      "name": "TraderBot",
+      "discord_channel_id": "1473473950267740313",
+      "discord_channel_name": "trading-alerts",
+      "log_channel_id": "1475732630346403963",
+      "log_channel_name": "traderbot-logs",
+      "discord_mention": "@traderbot",
+      "status": "online",
+      "capabilities": ["trading", "backtesting", "market-analysis"],
+      "webhook_enabled": true,
+      "auto_post": true,
+      "onboarded_at": "2026-02-25T20:50:00Z"
+    },
+    {
+      "id": "productbuilder",
+      "name": "ProductBuilder",
+      "discord_channel_id": "1473474027971547186",
+      "discord_channel_name": "build-updates",
+      "log_channel_id": "1475732631147778051",
+      "log_channel_name": "productbuilder-logs",
+      "discord_mention": "@productbuilder",
+      "status": "online",
+      "capabilities": ["building", "deployment", "coding"],
+      "webhook_enabled": true,
+      "auto_post": true,
+      "onboarded_at": "2026-02-25T20:50:00Z"
+    },
+    {
+      "id": "content",
+      "name": "Distribution",
+      "discord_channel_id": "1473473978658980046",
+      "discord_channel_name": "content-alerts",
+      "log_channel_id": "1475732631978246215",
+      "log_channel_name": "distribution-logs",
+      "discord_mention": "@content",
+      "status": "online",
+      "capabilities": ["content-creation", "social-media", "scheduling"],
+      "webhook_enabled": true,
+      "auto_post": true,
+      "onboarded_at": "2026-02-25T20:48:00Z"
+    },
+    {
+      "id": "memorymanager",
+      "name": "MemoryManager",
+      "discord_channel_id": "1473474056341688575",
+      "discord_channel_name": "research-daily",
+      "log_channel_id": "1475732633110581298",
+      "log_channel_name": "memorymanager-logs",
+      "discord_mention": "@memorymanager",
+      "status": "online",
+      "capabilities": ["research", "knowledge-management", "consolidation"],
+      "webhook_enabled": true,
+      "auto_post": true,
+      "onboarded_at": "2026-02-25T20:50:00Z"
+    },
+    {
+      "id": "iosappbuilder",
+      "name": "iOSAppBuilder",
+      "discord_channel_id": "1473474027971547186",
+      "discord_channel_name": "build-updates",
+      "log_channel_id": "1475732631147778051",
+      "log_channel_name": "productbuilder-logs",
+      "discord_mention": "@iosappbuilder",
+      "status": "online",
+      "capabilities": ["ios-development", "testflight", "app-store"],
+      "webhook_enabled": true,
+      "auto_post": true,
+      "onboarded_at": "2026-02-25T20:50:00Z"
+    },
+    {
+      "id": "securityagent",
+      "name": "SecurityAgent",
+      "discord_channel_id": "1473474006916006073",
+      "discord_channel_name": "security-alerts",
+      "log_channel_id": "1473474012968648890",
+      "log_channel_name": "audit-logs",
+      "discord_mention": "@securityagent",
+      "status": "online",
+      "capabilities": ["security-scanning", "auditing", "monitoring", "hardening"],
+      "webhook_enabled": true,
+      "auto_post": true,
+      "onboarded_at": "2026-02-25T20:55:00Z"
+    }
+  ],
+  "cross_agent_enabled": true,
+  "default_mention": "@honey",
+  "log_all_messages": true,
+  "creative_orchestration_channel": "1475732634465468486",
+  "agent_status_channel": "1473473925253038242"
+}

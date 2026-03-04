@@ -1,0 +1,294 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light theme (default) */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 20% 45%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
+    --radius: 0.5rem;
+
+    /* Chart colors */
+    --chart-1: 217 91% 60%;
+    --chart-2: 142 76% 36%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 0 84% 60%;
+    --chart-5: 271 91% 65%;
+
+    /* Status colors */
+    --status-online: 142 76% 36%;
+    --status-busy: 38 92% 50%;
+    --status-offline: 215 20% 45%;
+    --status-error: 0 84% 60%;
+  }
+
+  .dark {
+    /* Dark theme */
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 15%;
+    --input: 217 33% 15%;
+    --ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Animations */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(271 91% 65%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Glass effect - works for both themes */
+.glass {
+  background: hsl(var(--background) / 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+/* Chart tooltip */
+.recharts-tooltip-wrapper {
+  outline: none !important;
+}
+
+/* Data grid */
+.data-grid {
+  display: grid;
+  gap: 1px;
+  background: hsl(var(--border));
+}
+
+.data-grid > * {
+  background: hsl(var(--card));
+}
+
+/* Focus visible styles for accessibility */
+*:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* Smooth transitions for theme switching */
+* {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Disable transitions for users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Touch-friendly tap targets */
+@media (pointer: coarse) {
+  button, a {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* ============================================
+   BLOOMBERG TERMINAL STYLES
+   ============================================ */
+
+/* Bloomberg Colors */
+:root {
+  --bloomberg-black: #000000;
+  --bloomberg-dark: #111111;
+  --bloomberg-gray: #222222;
+  --bloomberg-light-gray: #333333;
+  --bloomberg-amber: #FF9900;
+  --bloomberg-green: #00FF00;
+  --bloomberg-red: #FF3333;
+  --bloomberg-cyan: #00FFFF;
+  --bloomberg-magenta: #FF00FF;
+  --bloomberg-yellow: #FFFF00;
+  --bloomberg-text: #888888;
+  --bloomberg-text-dim: #666666;
+}
+
+/* Terminal-specific scrollbar */
+.terminal-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.terminal-scroll::-webkit-scrollbar-track {
+  background: var(--bloomberg-black);
+}
+
+.terminal-scroll::-webkit-scrollbar-thumb {
+  background: var(--bloomberg-light-gray);
+  border-radius: 0;
+}
+
+.terminal-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--bloomberg-amber);
+}
+
+/* Scrolling Ticker Animation */
+@keyframes scroll-x {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-33.33%);
+  }
+}
+
+.animate-scroll-x {
+  animation: scroll-x 30s linear infinite;
+}
+
+/* Terminal text styles */
+.terminal-text {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+/* No rounded corners for Bloomberg style */
+.terminal-box {
+  border-radius: 0 !important;
+}
+
+/* Blinking cursor */
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.terminal-cursor {
+  animation: blink 1s step-end infinite;
+}
+
+/* Panel glow effect on hover */
+.terminal-panel {
+  position: relative;
+}
+
+.terminal-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid transparent;
+  transition: border-color 0.2s;
+  pointer-events: none;
+}
+
+.terminal-panel:hover::before {
+  border-color: var(--bloomberg-amber);
+}
+
+/* Price flash animation */
+@keyframes flash-green {
+  0% { background-color: rgba(0, 255, 0, 0.3); }
+  100% { background-color: transparent; }
+}
+
+@keyframes flash-red {
+  0% { background-color: rgba(255, 51, 51, 0.3); }
+  100% { background-color: transparent; }
+}
+
+.flash-up {
+  animation: flash-green 0.5s ease-out;
+}
+
+.flash-down {
+  animation: flash-red 0.5s ease-out;
+}
+
+/* Grid lines */
+.terminal-grid {
+  background-image: 
+    linear-gradient(to right, var(--bloomberg-light-gray) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--bloomberg-light-gray) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Selection style */
+::selection {
+  background-color: var(--bloomberg-amber);
+  color: var(--bloomberg-black);
+}

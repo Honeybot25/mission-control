@@ -1,0 +1,325 @@
+import { AgentNode, AgentEdge, GraphFilter, CollaborationMetric, AgentStats, TaskDependency } from '@/types/graph';
+import { supabase } from '@/lib/supabase-real';
+
+// Agent configuration - matches AGENTS.md
+const AGENTS: AgentNode[] = [
+  {
+    id: 'honey',
+    name: 'Honey',
+    emoji: '🍯',
+    type: 'orchestrator',
+    status: 'active',
+    currentTask: 'Orchestrating team',
+    activityLevel: 100,
+    color: '#FFA500'
+  },
+  {
+    id: 'traderbot',
+    name: 'TraderBot',
+    emoji: '🤖',
+    type: 'trader',
+    status: 'idle',
+    currentTask: 'Monitoring markets',
+    activityLevel: 60,
+    color: '#10B981'
+  },
+  {
+    id: 'productbuilder',
+    name: 'ProductBuilder',
+    emoji: '🚀',
+    type: 'product',
+    status: 'active',
+    currentTask: 'Building features',
+    activityLevel: 80,
+    color: '#3B82F6'
+  },
+  {
+    id: 'iosappbuilder',
+    name: 'iOSAppBuilder',
+    emoji: '📱',
+    type: 'ios',
+    status: 'idle',
+    currentTask: 'Waiting for tasks',
+    activityLevel: 40,
+    color: '#8B5CF6'
+  },
+  {
+    id: 'distributionagent',
+    name: 'DistributionAgent',
+    emoji: '📢',
+    type: 'distribution',
+    status: 'idle',
+    currentTask: 'Planning content',
+    activityLevel: 50,
+    color: '#EC4899'
+  },
+  {
+    id: 'memorymanager',
+    name: 'MemoryManager',
+    emoji: '🧠',
+    type: 'memory',
+    status: 'active',
+    currentTask: 'Indexing knowledge',
+    activityLevel: 70,
+    color: '#06B6D4'
+  }
+];
+
+// Calculate time-decayed weight
+function calculateTimeDecayWeight(
+  totalInteractions: number,
+  lastInteraction: Date,
+  decayFactor: number = 0.95
+): number {
+  const daysAgo = (Date.now() - new Date(lastInteraction).getTime()) / (1000 * 60 * 60 * 24);
+  const timeDecay = Math.pow(decayFactor, daysAgo);
+  return totalInteractions * timeDecay + 1;
+}
+
+// Fetch collaboration data from database
+async function fetchCollaborationData(
+  timeRange: '7d' | '30d' | 'all'
+): Promise<CollaborationMetric[]> {
+  // Build and execute query
+  const cutoff7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const cutoff30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  let query = supabase
+    .from('agent_interactions')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (timeRange === '7d') {
+    query = query.gte('created_at', cutoff7d);
+  } else if (timeRange === '30d') {
+    query = query.gte('created_at', cutoff30d);
+  }
+
+  const { data: interactions, error } = await query;
+
+  if (error || !interactions) {
+    console.error('Failed to fetch collaboration data:', error);
+    return [];
+  }
+
+  // Aggregate by agent pair
+  const pairMap = new Map<string, CollaborationMetric>();
+
+  for (const interaction of interactions) {
+    const pairKey = [interaction.from_agent, interaction.to_agent].sort().join('-');
+    const existing = pairMap.get(pairKey);
+
+    if (existing) {
+      existing.totalInteractions++;
+      const type = interaction.type as string;
+      (existing.interactionTypes as Record<string, number>)[type] = ((existing.interactionTypes as Record<string, number>)[type] || 0) + 1;
+      if (new Date(interaction.created_at) > existing.lastInteraction) {
+        existing.lastInteraction = new Date(interaction.created_at);
+      }
+    } else {
+      pairMap.set(pairKey, {
+        agent1: interaction.from_agent,
+        agent2: interaction.to_agent,
+        totalInteractions: 1,
+        interactions7d: timeRange === '7d' ? 1 : 0,
+        interactions30d: timeRange === '30d' ? 1 : 0,
+        lastInteraction: new Date(interaction.created_at),
+        interactionTypes: { [interaction.type as string]: 1 } as Record<string, number>
+      });
+    }
+  }
+
+  return Array.from(pairMap.values());
+}
+
+// Fetch task dependencies
+async function fetchTaskDependencies(): Promise<TaskDependency[]> {
+  const { data: deps, error } = await supabase.from('task_dependencies').select('*');
+
+  if (error || !deps) {
+    console.error('Failed to fetch dependencies:', error);
+    return [];
+  }
+
+  return deps.map(d => ({
+    id: d.id,
+    taskId: d.task_id,
+    dependsOnTaskId: d.depends_on_task_id,
+    status: d.status,
+    blocking: d.blocking
+  }));
+}
+
+// Get current agent sessions for live status
+async function fetchAgentSessions() {
+  const { data: sessions, error } = await supabase
+    .from('agent_sessions')
+    .select('*')
+    .eq('status', 'active')
+    .order('started_at', { ascending: false });
+
+  if (error || !sessions) {
+    console.error('Failed to fetch sessions:', error);
+    return [];
+  }
+
+  return sessions;
+}
+
+// Build graph data
+export interface GraphData {
+  nodes: AgentNode[];
+  edges: AgentEdge[];
+  stats: AgentStats[];
+}
+
+export async function buildGraphData(filter: GraphFilter): Promise<GraphData> {
+  // Start with base agent configuration
+  const nodes = [...AGENTS];
+
+  // Update with live status if available
+  try {
+    const sessions = await fetchAgentSessions();
+    const agentStatusMap = new Map<string, { status: string; task: string }>();
+
+    for (const session of sessions) {
+      if (!agentStatusMap.has(session.agent)) {
+        agentStatusMap.set(session.agent, {
+          status: session.status,
+          task: session.current_task || 'Active'
+        });
+      }
+    }
+
+    for (const node of nodes) {
+      const liveStatus = agentStatusMap.get(node.id);
+      if (liveStatus) {
+        node.status = liveStatus.status as AgentNode['status'];
+        node.currentTask = liveStatus.task;
+      }
+    }
+  } catch (err) {
+    console.log('Using default agent statuses');
+  }
+
+  // Fetch collaboration data
+  const collabMetrics = await fetchCollaborationData(filter.timeRange);
+
+  // Build edges from collaboration metrics
+  const edgeMap = new Map<string, AgentEdge>();
+
+  for (const metric of collabMetrics) {
+    const edgeId = `${metric.agent1}-${metric.agent2}`;
+
+    // Calculate recent weight with time decay
+    const recentWeight = calculateTimeDecayWeight(
+      metric.totalInteractions,
+      metric.lastInteraction
+    );
+
+    // Filter by minimum weight
+    if (recentWeight < filter.minWeight) continue;
+
+    edgeMap.set(edgeId, {
+      id: edgeId,
+      source: metric.agent1,
+      target: metric.agent2,
+      weight: metric.totalInteractions,
+      types: Object.keys(metric.interactionTypes) as any[],
+      recentWeight,
+      lastInteraction: metric.lastInteraction,
+      interactions: metric.totalInteractions
+    });
+  }
+
+  // Add dependency edges if enabled
+  if (filter.showDependencies) {
+    const deps = await fetchTaskDependencies();
+
+    for (const dep of deps) {
+      // Find edges between agents that involve these tasks
+      // Link tasks to their agents (simplified: tasks are prefixed with agent id)
+      const sourceAgentId = dep.taskId.split('-')[0];
+      const targetAgentId = dep.dependsOnTaskId.split('-')[0];
+      
+      // Add as metadata to existing edge if it exists
+      for (const edge of edgeMap.values()) {
+        if ((edge.source === sourceAgentId && edge.target === targetAgentId) ||
+            (edge.source === targetAgentId && edge.target === sourceAgentId)) {
+          if (!edge.dependencies) edge.dependencies = [];
+          edge.dependencies.push(dep);
+        }
+      }
+    }
+  }
+
+  // Calculate agent stats
+  const statsMap = new Map<string, AgentStats>();
+
+  for (const node of nodes) {
+    const relatedEdges = Array.from(edgeMap.values()).filter(
+      e => e.source === node.id || e.target === node.id
+    );
+
+    const totalCollaborations = relatedEdges.reduce((sum, e) => sum + e.interactions, 0);
+    const uniquePartners = new Set(
+      relatedEdges.flatMap(e => [e.source, e.target].filter(id => id !== node.id))
+    ).size;
+
+    // Calculate collaboration score (weighted by recency)
+    const collaborationScore = relatedEdges.reduce((sum, e) => sum + e.recentWeight, 0);
+
+    // Determine isolation level
+    let isolationLevel: 'high' | 'medium' | 'low' = 'low';
+
+    if (uniquePartners === 0) isolationLevel = 'high';
+    else if (uniquePartners <= 2) isolationLevel = 'medium';
+
+    statsMap.set(node.id, {
+      totalCollaborations,
+      uniquePartners,
+      collaborationScore: Math.round(collaborationScore * 10) / 10,
+      isolationLevel,
+    });
+  }
+
+  return {
+    nodes,
+    edges: Array.from(edgeMap.values()),
+    stats: Object.fromEntries(statsMap),
+  };
+}
+
+/**
+ * Get most collaborative agent pairs
+ */
+export function getTopCollaborations(edges: GraphEdge[], limit: number = 5): Array<{
+  agentA: string;
+  agentB: string;
+  interactions: number;
+}> {
+  return edges
+    .sort((a, b) => b.interactions - a.interactions)
+    .slice(0, limit)
+    .map(edge => ({
+      agentA: edge.source,
+      agentB: edge.target,
+      interactions: edge.interactions,
+    }));
+}
+
+/**
+ * Identify isolated agents
+ */
+export function findIsolatedAgents(stats: Record<string, AgentStats>): string[] {
+  return Object.entries(stats)
+    .filter(([, stat]) => stat.isolationLevel === 'high')
+    .map(([agentId]) => agentId);
+}
+
+export default {
+  buildGraphData,
+  getTopCollaborations,
+  findIsolatedAgents,
+};
+

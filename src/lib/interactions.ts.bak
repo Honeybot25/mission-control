@@ -1,0 +1,168 @@
+import { supabase, withRetry } from '@/lib/supabase-real';
+import { CollaborationType } from '@/types/graph';
+
+// Track an agent interaction
+export async function trackInteraction(
+  fromAgent: string,
+  toAgent: string,
+  type: CollaborationType,
+  metadata?: {
+    sessionId?: string;
+    channelId?: string;
+    messageId?: string;
+    taskId?: string;
+    details?: Record<string, any>;
+  }
+) {
+  const { error } = await withRetry(() =>
+    supabase.from('agent_interactions').insert({
+      from_agent: fromAgent,
+      to_agent: toAgent,
+      type,
+      session_id: metadata?.sessionId,
+      channel_id: metadata?.channelId,
+      message_id: metadata?.messageId,
+      task_id: metadata?.taskId,
+      metadata: metadata?.details || {}
+    })
+  );
+
+  if (error) {
+    console.error('Failed to track interaction:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Track a task handoff
+export async function trackHandoff(
+  fromAgent: string,
+  toAgent: string,
+  taskId: string,
+  metadata?: Record<string, any>
+) {
+  return trackInteraction(fromAgent, toAgent, 'handoff', {
+    taskId,
+    details: metadata
+  });
+}
+
+// Track a dependency
+export async function trackDependency(
+  agent: string,
+  taskId: string,
+  dependsOnTaskId: string,
+  blocking: boolean = true
+): Promise<boolean> {
+  const { error } = await withRetry(() =>
+    supabase.from('task_dependencies').insert({
+      task_id: taskId,
+      depends_on_task_id: dependsOnTaskId,
+      blocking,
+      agent
+    })
+  );
+
+  if (error) {
+    console.error('Failed to track dependency:', error);
+    return false;
+  }
+
+  return true;
+}
+
+// Track a blocking relationship
+export async function trackBlock(
+  blockingAgent: string,
+  blockedAgent: string,
+  taskId: string,
+  blockingTaskId: string
+) {
+  await trackInteraction(blockingAgent, blockedAgent, 'block', {
+    taskId: blockedAgent,
+    details: { blockingTaskId, taskId }
+  });
+  await trackDependency(blockedAgent, taskId, blockingTaskId, true);
+}
+
+// Track unblock
+export async function trackUnblock(
+  unblockingAgent: string,
+  unblockedAgent: string,
+  taskId: string
+) {
+  await trackInteraction(unblockingAgent, unblockedAgent, 'unblock', {
+    taskId,
+  });
+
+  // Update dependency status
+  await withRetry(() =>
+    supabase
+      .from('task_dependencies')
+      .update({ status: 'completed' })
+      .eq('task_id', taskId)
+  );
+}
+
+// Parse @mentions from text and track them
+export async function parseAndTrackMentions(
+  text: string,
+  fromAgent: string,
+  metadata?: Record<string, any>
+): Promise<string[]> {
+  const mentionPattern = /@(\w+)(?:-(?:agent|bot))?/gi;
+  const matches = text.matchAll(mentionPattern);
+  const mentioned: string[] = [];
+
+  for (const match of matches) {
+    const agentName = match[1].toLowerCase();
+    if (agentName !== fromAgent.toLowerCase()) {
+      mentioned.push(agentName);
+      await trackInteraction(fromAgent, agentName, 'mention', metadata);
+    }
+  }
+
+  return mentioned;
+}
+
+// Get collaboration stats for an agent pair
+export async function getCollaborationStats(agent1: string, agent2: string) {
+  const { data: stats, error } = await withRetry(() =>
+    supabase
+      .from('agent_collaboration_stats')
+      .select('*')
+      .or(`and(from_agent.eq.${agent1},to_agent.eq.${agent2}),and(from_agent.eq.${agent2},to_agent.eq.${agent1})`)
+      .single()
+  );
+
+  if (error) return null;
+  return stats;
+}
+
+// Get all interactions for an agent
+export async function getAgentInteractions(
+  agent: string,
+  timeRange: '7d' | '30d' | 'all' = '30d'
+) {
+  let query = supabase
+    .from('agent_interactions')
+    .select('*')
+    .or(`from_agent.eq.${agent},to_agent.eq.${agent}`)
+    .order('created_at', { ascending: false });
+
+  if (timeRange === '7d') {
+    query = query.gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+  } else if (timeRange === '30d') {
+    query = query.gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+  }
+
+  const { data: interactions, error } = await withRetry(() => query);
+
+  if (error) {
+    console.error('Failed to get interactions:', error);
+    return [];
+  }
+
+  return interactions || [];
+}
