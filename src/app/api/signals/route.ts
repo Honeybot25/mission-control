@@ -17,6 +17,8 @@ interface Signal {
     volume_spike?: number
     gamma_exposure?: number
     put_call_ratio?: number
+    rsi?: number
+    macd?: number
   }
 }
 
