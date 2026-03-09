@@ -58,6 +58,7 @@ const sidebarItems: NavItem[] = [
   { icon: Activity, label: "Activity", href: "/activity" },
   { icon: TrendingUp, label: "Market Intelligence", href: "/market-intelligence" },
   { icon: LineChart, label: "Trading Terminal", href: "/terminal" },
+  { icon: Zap, label: "GEX Terminal", href: "/gex-terminal" },
   { icon: Radio, label: "Options Signals", href: "/options-signals" },
   {
     icon: BarChart3,
