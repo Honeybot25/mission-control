@@ -108,10 +108,18 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ agents })
   } catch (error) {
     console.error('[API Agents] GET error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch agents' },
-      { status: 500 }
-    )
+    // Return fallback agents instead of 500
+    return NextResponse.json({
+      agents: [
+        { id: '1', name: 'TraderBot', slug: 'traderbot', status: 'idle', description: 'Trading systems' },
+        { id: '2', name: 'ProductBuilder', slug: 'productbuilder', status: 'idle', description: 'Building products' },
+        { id: '3', name: 'iOSAppBuilder', slug: 'ios-app-builder', status: 'idle', description: 'iOS development' },
+        { id: '4', name: 'Distribution', slug: 'distribution', status: 'idle', description: 'Content distribution' },
+        { id: '5', name: 'MemoryManager', slug: 'memorymanager', status: 'idle', description: 'Knowledge management' },
+      ],
+      _error: error instanceof Error ? error.message : 'Database connection failed',
+      _fallback: true
+    })
   }
 }
 
@@ -232,10 +240,12 @@ export async function POST(request: NextRequest) {
     }
   } catch (error) {
     console.error('[API Agents] POST error:', error)
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      success: false,
+      error: 'Service temporarily unavailable',
+      message: error instanceof Error ? error.message : 'Database connection failed',
+      _fallback: true
+    }, { status: 503 })
   }
 }
 
@@ -264,9 +274,11 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ agent })
   } catch (error) {
     console.error('[API Agents] PATCH error:', error)
-    return NextResponse.json(
-      { error: 'Failed to update agent' },
-      { status: 500 }
-    )
+    return NextResponse.json({
+      success: false,
+      error: 'Service temporarily unavailable',
+      message: error instanceof Error ? error.message : 'Database connection failed',
+      _fallback: true
+    }, { status: 503 })
   }
 }

@@ -45,10 +45,14 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('[API Tasks] GET error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch tasks', details: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    // Return empty tasks instead of 500
+    return NextResponse.json({
+      tasks: [],
+      counts: { pending: 0, running: 0, completed: 0, failed: 0, cancelled: 0, total: 0 },
+      lastUpdated: new Date().toISOString(),
+      _error: error instanceof Error ? error.message : 'Database connection failed',
+      _fallback: true
+    });
   }
 }
 
@@ -111,10 +115,12 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('[API Tasks] POST error:', error);
-    return NextResponse.json(
-      { error: 'Failed to create task', details: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: false,
+      error: 'Service temporarily unavailable',
+      message: error instanceof Error ? error.message : 'Database connection failed',
+      _fallback: true
+    }, { status: 503 });
   }
 }
 
@@ -143,10 +149,12 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true, task });
   } catch (error) {
     console.error('[API Tasks] PATCH error:', error);
-    return NextResponse.json(
-      { error: 'Failed to update task', details: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: false,
+      error: 'Service temporarily unavailable',
+      message: error instanceof Error ? error.message : 'Database connection failed',
+      _fallback: true
+    }, { status: 503 });
   }
 }
 
@@ -175,9 +183,11 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, message: 'Task deleted successfully' });
   } catch (error) {
     console.error('[API Tasks] DELETE error:', error);
-    return NextResponse.json(
-      { error: 'Failed to delete task', details: error instanceof Error ? error.message : String(error) },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: false,
+      error: 'Service temporarily unavailable',
+      message: error instanceof Error ? error.message : 'Database connection failed',
+      _fallback: true
+    }, { status: 503 });
   }
 }

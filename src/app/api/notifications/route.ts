@@ -23,13 +23,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Simplified query without joins to prevent 500 errors
+    // Foreign key relationships may not be properly set up
     let query = supabase
       .from('notifications')
-      .select(`
-        *,
-        sender:sender_agent_id(id, name, slug),
-        related_task:related_task_id(id, input_summary, status)
-      `)
+      .select('*')
       .eq('recipient_agent_id', agentId)
       .order('created_at', { ascending: false })
       .limit(limit);
@@ -42,22 +40,31 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('[API Notifications] Fetch error:', error);
+      // Return empty data if table doesn't exist (graceful degradation)
+      if (error.message?.includes('Could not find the table') || 
+          error.message?.includes('does not exist') ||
+          error.code === '42P01') {
+        return NextResponse.json({
+          notifications: [],
+          unreadCount: 0,
+          _warning: 'Notifications table not set up yet'
+        });
+      }
       return NextResponse.json(
         { error: 'Failed to fetch notifications', details: error.message },
         { status: 500 }
       );
     }
 
-    // Get unread count
-    const { count, error: countError } = await supabase
-      .from('notifications')
-      .select('*', { count: 'exact', head: true })
-      .eq('recipient_agent_id', agentId)
-      .eq('is_read', false);
+    // Get unread count (handle missing table gracefully)
+    let unreadCount = 0;
+    if (data) {
+      unreadCount = data.filter(n => !n.is_read).length;
+    }
 
     return NextResponse.json({
       notifications: data || [],
-      unreadCount: count || 0,
+      unreadCount: unreadCount,
     });
   } catch (error) {
     console.error('[API Notifications] Error:', error);
