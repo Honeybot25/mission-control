@@ -45,6 +45,20 @@ interface GEXAlert {
   threshold_breached: string;
 }
 
+interface GEXApiResponse {
+  call_gex: number;
+  max_gamma_strike: number;
+  max_gamma_value: number;
+  put_call_ratio: number;
+  put_gex: number;
+  spot_price: number;
+  strikes: Array<{ call_gex: number; put_gex: number; strike: number; total_gex: number }>;
+  ticker: string;
+  timestamp: string;
+  total_gex: number;
+  zero_gamma_level: number;
+}
+
 // Mock data generator for demo
 const generateMockData = (symbol: string): GEXLevel[] => {
   const data: GEXLevel[] = [];
@@ -106,11 +120,54 @@ export default function GEXTerminal() {
   const [gexData, setGexData] = useState<GEXLevel[]>([]);
   const [currentGEX, setCurrentGEX] = useState<GEXLevel | null>(null);
   const [isLive, setIsLive] = useState(false);
+  // New states for real data
+  const [strikeData, setStrikeData] = useState<Array<{strike: number, total_gex: number}>>([]);
+  const [apiResponse, setApiResponse] = useState<GEXApiResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const data = generateMockData(selectedSymbol);
-    setGexData(data);
-    setCurrentGEX(data[data.length - 1]);
+    // Generate mock data for chart
+    const mock = generateMockData(selectedSymbol);
+    setGexData(mock);
+    // Also set fallback currentGEX from mock
+    setCurrentGEX(mock[mock.length - 1]);
+
+    // Fetch real data from traderbot API
+    setLoading(true);
+    setError(null);
+    fetch(`https://workspace-traderbot.vercel.app/api/gex/profile/${selectedSymbol}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data: GEXApiResponse) => {
+        const netGex = data.total_gex;
+        const zeroGamma = data.zero_gamma_level;
+        const flipPoint = zeroGamma; // Magnetic level
+        const status: "positive" | "negative" | "neutral" = netGex > 0 ? "positive" : netGex < 0 ? "negative" : "neutral";
+        // Update state with real data
+        setCurrentGEX({
+          net_gex: netGex,
+          zero_gamma: zeroGamma,
+          flip_point: flipPoint,
+          status,
+        });
+        setStrikeData(
+          data.strikes
+            .map((s) => ({ strike: s.strike, total_gex: s.total_gex }))
+            .sort((a, b) => a.strike - b.strike)
+        );
+        setApiResponse(data);
+        setLoading(false);
+        setIsLive(true);
+      })
+      .catch((err) => {
+        console.error("GEX fetch error:", err);
+        setError("Failed to load real GEX data");
+        setLoading(false);
+        // keep mock data as fallback
+      });
   }, [selectedSymbol]);
 
   const getStatusColor = (status: string) => {
@@ -237,41 +294,58 @@ export default function GEXTerminal() {
         </Card>
       </div>
 
-      {/* Main Chart */}
+      {/* Strike Gamma Chart */}
       <Card className="bg-slate-900 border-slate-700 mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Activity className="text-blue-400" />
-            Intraday GEX Levels — {selectedSymbol}
+            Strike Gamma Exposure — {selectedSymbol}
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={gexData}>
-              <defs>
-                <linearGradient id="gexGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={selectedSymbol === "SPY" ? "#3b82f6" : "#a855f7"} stopOpacity={0.3}/>
-                  <stop offset="95%" stopColor={selectedSymbol === "SPY" ? "#3b82f6" : "#a855f7"} stopOpacity={0}/>
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="timestamp" stroke="#64748b" />
-              <YAxis stroke="#64748b" />
-              <Tooltip 
-                contentStyle={{ backgroundColor: "#1e293b", border: "none", borderRadius: "8px" }}
-                itemStyle={{ color: "#fff" }}
-              />
-              <ReferenceLine y={0} stroke="#fff" strokeDasharray="3 3" />
-              <Area 
-                type="monotone" 
-                dataKey="net_gex" 
-                stroke={selectedSymbol === "SPY" ? "#3b82f6" : "#a855f7"}
-                fillOpacity={1}
-                fill="url(#gexGradient)"
-                strokeWidth={2}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          {loading ? (
+            <div className="flex items-center justify-center h-64">
+              <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+            </div>
+          ) : error || strikeData.length === 0 ? (
+            <div className="flex items-center justify-center h-64 text-slate-400">
+              {error || "No strike data available"}
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={strikeData}
+                layout="vertical"
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis type="number" stroke="#64748b" allowDecimals={false} />
+                <YAxis
+                  dataKey="strike"
+                  type="category"
+                  stroke="#64748b"
+                  width={80}
+                  tickFormatter={(value) => `$${value}`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "#1e293b",
+                    border: "none",
+                    borderRadius: "8px",
+                  }}
+                  itemStyle={{ color: "#fff" }}
+                  formatter={(value: number) => [`${value.toFixed(2)}`, "Total GEX"]}
+                  labelFormatter={(label) => `Strike: $${label}`}
+                />
+                <Bar
+                  dataKey="total_gex"
+                  fill="#3b82f6"
+                  radius={[0, 4, 4, 0]}
+                  barSize={12}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
 
